@@ -72,14 +72,14 @@
                     }
                     if(!game.input.activePointer.leftButton.isDown) this.disparo = false;
 
-                    // To make jugador flash when they are hit, set jugador.spite.alpha = 0
+                    // efecto hit de bala (flash)
                     if(this.sprite.alpha < 1){
                         this.sprite.alpha += (1 - this.sprite.alpha) * 0.16;
                     } else {
                         this.sprite.alpha = 1;
                     }
                   
-                    // Tell the server we've moved 
+                    // avisar que nos movimos
                     socket.emit('mover-jugador',{x:this.sprite.x,y:this.sprite.y,angulo:this.sprite.rotation})
   
                 }
@@ -124,8 +124,11 @@
                 game.stage.disableVisibilityChange = true;
 
                 // Crear jugador
-                var jugador_ship_type = String(1);
-                jugador.sprite = game.add.sprite(Math.random() * WORLD_SIZE.w/2 + WORLD_SIZE.w/2,Math.random() * WORLD_SIZE.h/2 + WORLD_SIZE.h/2,'ship'+jugador_ship_type+'_1');
+                var jugador_ship_type = String(Math.floor(Math.random() * 6 + 1)); // aleatorio entre 1 y 6
+                jugador.sprite = game.add.sprite(
+                    Math.random() * WORLD_SIZE.w/2 + WORLD_SIZE.w/2,
+                    Math.random() * WORLD_SIZE.h/2 + WORLD_SIZE.h/2,
+                    'ship'+jugador_ship_type+'_1');
                 jugador.sprite.anchor.setTo(0.5,0.5);
                
 
