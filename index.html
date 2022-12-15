@@ -2,7 +2,7 @@
     <head>
         <meta charset="UTF-8" />
         <title>BattleShip Online</title>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/2.4.2/phaser.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/2.6.2/phaser.min.js"></script>
         <script src="/socket.io/socket.io.js"></script>
 
         <style type="text/css">
@@ -20,11 +20,10 @@
         <script type="text/javascript">
             var ASSET_URL = "assets/"
             // inicializamos phaser
-            var WINDOW_WIDTH = 750;
-            var WINDOW_HEIGHT = 500;
+            var WINDOW_WIDTH = 1280;
+            var WINDOW_HEIGHT = 720;
             var game = new Phaser.Game(WINDOW_WIDTH, WINDOW_HEIGHT, Phaser.AUTO, '', {preload:preload, create:create, update:GameLoop} );
-
-            var WORLD_SIZE = {w:750,h:500};
+            var WORLD_SIZE = {w:WINDOW_WIDTH,h:WINDOW_HEIGHT};
           
 
             var tiles_agua = [];
@@ -35,6 +34,8 @@
           
             var jugador = {
                 sprite:null,
+                texto_puntaje: null,
+                texto_vida: null,
                 vel_x:0, // velocidad actual
                 vel_y:0,
                 velocidad:0.5, // velocidad a la que deberia ir
@@ -58,6 +59,10 @@
                     
                     this.sprite.x += this.vel_x;
                     this.sprite.y += this.vel_y;
+                    this.texto_puntaje.x = this.sprite.x;
+                    this.texto_puntaje.y = this.sprite.y - 60;
+                    this.texto_vida.x = this.sprite.x;
+                    this.texto_vida.y = this.sprite.y - 30;
 
                     this.vel_x *= this.friccion;
                     this.vel_y *= this.friccion;
@@ -87,11 +92,14 @@
                   
             };
 
-            function CrearBarco(tipo,x,y,angulo){ // el tipo puede ser [1,6] para distintos tipos de barco
+            function CrearBarco(tipo,x,y,angulo,id,vida){ // el tipo puede ser [1,6] para distintos tipos de barco
                 var sprite = game.add.sprite(x,y,'ship' + String(tipo) + '_1');
                 sprite.rotation = angulo;
                 sprite.anchor.setTo(0.5,0.5);
-                return sprite;
+                var texto = game.add.bitmapText(x, y - 60, 'carrier_command', "Player" + String(id), 12);
+                var texto2 = game.add.bitmapText(x, y - 30, 'carrier_command', `(${vida})`, 12);
+                texto.anchor.setTo(0.5,0.5);
+                return {barco: sprite, textos: [texto, texto2], vida: vida};
             }
 
 
@@ -109,6 +117,9 @@
                 
                 game.load.image('bala', ASSET_URL + 'cannon_ball.png');
                 game.load.image('agua', ASSET_URL + 'water_tile.png');
+                
+                game.load.bitmapFont('carrier_command', 'assets/fonts/bitmapFonts/carrier_command.png', 'assets/fonts/bitmapFonts/carrier_command.xml');
+            
             }
 
             function create(){ // crear el agua
@@ -130,23 +141,44 @@
                     Math.random() * WORLD_SIZE.h/2 + WORLD_SIZE.h/2,
                     'ship'+jugador_ship_type+'_1');
                 jugador.sprite.anchor.setTo(0.5,0.5);
-               
+                jugador.texto_puntaje = game.add.bitmapText(jugador.sprite.x, jugador.sprite.y - 60, 'carrier_command', "Player", 12);
+                jugador.texto_puntaje.anchor.setTo(0.5,0.5);
+                jugador.texto_vida = game.add.bitmapText(jugador.sprite.x, jugador.sprite.y - 30, 'carrier_command', "(100)", 12);
+                jugador.texto_vida.anchor.setTo(0.5,0.5);
 
                 game.world.setBounds(0, 0, WORLD_SIZE.w, WORLD_SIZE.h);
 
                 game.camera.x = jugador.sprite.x - WINDOW_WIDTH/2;
                 game.camera.y = jugador.sprite.y - WINDOW_HEIGHT/2;
 
+                game.camera.onFadeComplete.add(EndGame, this);
+
                 socket = io(); // activa el evento "connection" en el server
-                socket.emit('nuevo-jugador',{x:jugador.sprite.x,y:jugador.sprite.y,angulo:jugador.sprite.rotation,type:1})
+                socket.emit('nuevo-jugador',{x:jugador.sprite.x,y:jugador.sprite.y,angulo:jugador.sprite.rotation,type:1,vida:100})
+                socket.on('muerte-jugador', function(id_muerto){
+                    if(id_muerto == socket.id) {
+                        jugador.sprite.destroy();
+                        jugador.texto_puntaje.destroy();
+                        jugador.texto_vida.destroy();
+                        var texto_final = game.add.bitmapText(
+                            WORLD_SIZE.w/2, WORLD_SIZE.h/2, 
+                            'carrier_command', "GAME OVER", 32);
+                        texto_final.anchor.setTo(0.5, 0.5);
+                        Fade();
+                    }
+                });
                 socket.on('actualizar-jugadores',function(jugadores){
                     var jugadores_found = {};
                     // ver datos recividos de cada jugador
                     for(var id in jugadores){
+                        // set id
+                        if(id == socket.id && jugador.texto_puntaje.text === "Player"){
+                            jugador.texto_puntaje.setText("Player" + jugadores[id].id);
+                        }
                         // si aun no creamos al jugador
                         if(otros_jugadores[id] == undefined && id != socket.id){ // evitamos crearnos de nuevo
                             var data = jugadores[id];
-                            var p = CrearBarco(data.type,data.x,data.y,data.angulo);
+                            var p = CrearBarco(data.type,data.x,data.y,data.angulo,data.id,data.vida);
                             otros_jugadores[id] = p;
                             console.log("Nuevo jugador creado en (" + data.x + ", " + data.y + ")");
                         }
@@ -154,22 +186,27 @@
                         
                         // actualizar posiciones
                         if(id != socket.id){
-                          otros_jugadores[id].target_x  = jugadores[id].x;
-                          otros_jugadores[id].target_y  = jugadores[id].y;
-                          otros_jugadores[id].target_rotation  = jugadores[id].angulo;
+                          otros_jugadores[id].barco.target_x  = jugadores[id].x;
+                          otros_jugadores[id].barco.target_y  = jugadores[id].y;
+                          otros_jugadores[id].barco.target_rotation  = jugadores[id].angulo;
                         }
-                        
+
+                        // actualizar vida
+                        if(id != socket.id){
+                          otros_jugadores[id].vida  = jugadores[id].vida;
+                        }
                         
                     }
                     // ver si algun jugador no esta y quitarlo
                     for(var id in otros_jugadores){
                         if(!jugadores_found[id]){
-                            otros_jugadores[id].destroy();
+                            otros_jugadores[id].barco.destroy();
+                            otros_jugadores[id].textos[0].destroy();
+                            otros_jugadores[id].textos[1].destroy();
                             delete otros_jugadores[id];
                         }
                     }
-                   
-                })
+                });
               
                 socket.on('balas-actualizacion',function(server_balas){
                   // crear balas si es necesario
@@ -189,16 +226,25 @@
                        i--;
                    }
                   
-                })
+                });
               
-                socket.on('colision-jugador',function(id){
+                socket.on('colision-jugador',function(id, vida){
                     if(id == socket.id){//si soy yo mismo
                         jugador.sprite.alpha = 0;
+                        jugador.texto_vida.setText(`(${vida})`);
                     } else {// si es otro jugador
-                        otros_jugadores[id].alpha = 0;
+                        otros_jugadores[id].barco.alpha = 0;
+                        otros_jugadores[id].textos[1].setText(`(${vida})`);
                     }
-                })
+                });
+            }
 
+            function Fade() {
+                game.camera.fade(0x000000, 2000);
+            }
+
+            function EndGame() {
+                game.destroy(true, true);
             }
 
             function GameLoop(){
@@ -212,8 +258,8 @@
               
                 // hay que recuperar el alpha...
                 for(var id in otros_jugadores){
-                    if(otros_jugadores[id].alpha < 1){
-                        otros_jugadores[id].alpha += (1 - otros_jugadores[id].alpha) * 0.16;
+                    if(otros_jugadores[id].barco.alpha < 1){
+                        otros_jugadores[id].barco.alpha += (1 - otros_jugadores[id].barco.alpha) * 0.16;
                     } else {
                         otros_jugadores[id].alpha = 1;
                     }
@@ -221,7 +267,8 @@
               
                 // interpolar posicion
                 for(var id in otros_jugadores){
-                    var p = otros_jugadores[id];
+                    var p = otros_jugadores[id].barco;
+                    var t = otros_jugadores[id].textos;
                     if(p.target_x != undefined){
                         p.x += (p.target_x - p.x) * 0.16;
                         p.y += (p.target_y - p.y) * 0.16;
@@ -231,6 +278,11 @@
                         dir -= Math.round(dir);
                         dir = dir * Math.PI * 2;
                         p.rotation += dir * 0.16;
+
+                        t[0].x = p.x;
+                        t[0].y = p.y - 60;
+                        t[1].x = p.x;
+                        t[1].y = p.y - 30;
                     }
                 }
             }
