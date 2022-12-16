@@ -2,25 +2,20 @@ var express = require('express');
 var app = express();
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
-
 // pagina inicial
 app.get("/", function (request, response) {
   response.sendFile(__dirname + '/index.html'); 
 });
-
 // carpeta de assets
 app.use('/assets',express.static('assets'))
-
 // escuchar en puerto definido en env o en el 8000
 app.set('port', (process.env.PORT || 8000));
 http.listen(app.get('port'), function(){
   console.log('Escuchando en el puerto ',app.get('port'));
 });
-
 var jugadores = {}; // diccionario de jugadores donde la llave es el id del socket
 var balas = []; // arreglo con las balas a las que necesitamos hacer seguimiento
 var index = 0; // index para asignar a los jugadores
-
 // conecciones socket.io
 io.on('connection', function(socket){
 	// cuando un nuevo usuario se conecta
@@ -63,7 +58,6 @@ function ServerGameLoop(){
     var bala = balas[i];
     bala.x += bala.vel_x; 
     bala.y += bala.vel_y; 
-    
     // ver si va a colisionar
     var id_muerto = null;
     for(var id in jugadores){
@@ -81,21 +75,17 @@ function ServerGameLoop(){
         }
       }
     }
-
     if(id_muerto){
       if(jugadores.hasOwnProperty(id_muerto))
         delete jugadores[id_muerto];
       io.emit('muerte-jugador',id_muerto);
     }
-    
     // quita la bala si se sale de los limites
     if(bala.x < -10 || bala.x > 1290 || bala.y < -10 || bala.y > 730){
         balas.splice(i,1);
         i--;
-    }
-        
+    }    
   }
   io.emit("balas-actualizacion",balas);
 }
-
 setInterval(ServerGameLoop, 16); 
