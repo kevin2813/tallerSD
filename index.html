@@ -17,6 +17,7 @@
         </style>
     </head>
     <body>
+        <div id="game-over"></div>
         <script type="text/javascript">
             var ASSET_URL = "assets/"
             // inicializamos phaser
@@ -244,7 +245,22 @@
             }
 
             function EndGame() {
-                game.destroy(true, true);
+                game.destroy(true, false);
+                var game_over_div = document.getElementById("game-over");
+                var go_span = document.createElement("span");
+                var go_span_text = document.createTextNode("GAME OVER");
+                var go_button = document.createElement("button")
+                var go_button_text = document.createTextNode("Jugar otra vez");
+                go_span.appendChild(go_span_text);
+                go_button.appendChild(go_button_text);
+                go_button.onclick = function(ev) {
+                    window.location.reload();
+                }
+                game_over_div.appendChild(go_span);
+                game_over_div.appendChild(go_button);
+                go_span.style = "display: block;font-size: 2rem;";
+                go_button.style = "font-size: 2rem;"
+                game_over_div.style = "position: fixed;margin: auto;inset: 0px;width: 240px;height: 120px;text-align: center;";
             }
 
             function GameLoop(){
