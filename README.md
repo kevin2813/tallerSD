@@ -1,6 +1,9 @@
 # GUERRA DE BARCOS
 ![GUERRA DE BARCOS PREVIEW](preview.png)
 
+Instalar los paquetes necesarios con npm:
+- `npm install`
+
 Para iniciar el servidor ejecutar la siguiente instrucción:  
 - `npm run start`  
 
