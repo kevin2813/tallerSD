@@ -1,5 +1,5 @@
-# SHIPGUN
-![SHIPGUN PREVIEW](preview.png)
+# GUERRA DE BARCOS
+![GUERRA DE BARCOS PREVIEW](preview.png)
 
 Para iniciar el servidor ejecutar la siguiente instrucción:  
 - `npm run start`  

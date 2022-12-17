@@ -1,7 +1,7 @@
 var express = require('express');
 var app = express();
 var http = require('http').Server(app);
-var io = require('socket.io')(http);
+var io = require('socket.io')(http); // protocolo websocket -> sobre conexion tcp
 // pagina inicial
 app.get("/", function (request, response) {
   response.sendFile(__dirname + '/index.html'); 
